@@ -1,0 +1,2 @@
+class IncomeIsGeneratedAsProcessed(Exception):
+    pass
