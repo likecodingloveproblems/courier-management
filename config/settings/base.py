@@ -4,6 +4,7 @@ Base settings to build other settings files upon.
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # miare/
@@ -38,7 +39,7 @@ LOCALE_PATHS = [str(ROOT_DIR / "locale")]
 # DATABASES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = {"default": env.db("DATABASE_URL", default="sqlite3:./db.sqlite")}
+DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:./db.sqlite")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 # https://docs.djangoproject.com/en/stable/ref/settings/#std:setting-DEFAULT_AUTO_FIELD
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -74,6 +75,7 @@ THIRD_PARTY_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "drf_spectacular",
+    "django_filters",
 ]
 
 LOCAL_APPS = [
@@ -250,9 +252,25 @@ LOGGING = {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-        }
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "formatter": "verbose",
+            "filename": "general.log",
+        },
+        "mail_admins": {
+            "level": "ERROR",
+            "class": "django.utils.log.AdminEmailHandler",
+            "include_html": False,
+        },
     },
-    "root": {"level": "INFO", "handlers": ["console"]},
+    "root": {"level": "INFO", "handlers": ["console", "file"]},
+    "loggers": {
+        "tasks": {
+            "handlers": ["mail_admins"],
+            "level": "ERROR",
+        },
+    },
 }
 
 # Celery
@@ -279,7 +297,30 @@ CELERY_TASK_TIME_LIMIT = 5 * 60
 # TODO: set to whatever value is adequate in your circumstances
 CELERY_TASK_SOFT_TIME_LIMIT = 60
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#beat-scheduler
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+WEEKLY_SATURDAY_AT_OO_15_GENERATE_REPORT = {
+    "day_of_week": 6,
+    "hour": 0,
+    "minute": 15,
+}
+EACH_DAY_AT_ONE_CLOCK_CHECK_YESTERDAY_DAILY_BALANCE = {
+    "day_of_week": "*",
+    "hour": 1,
+    "minute": 0,
+}
+CELERY_BEAT_SCHEDULE = {
+    "calculate_weekly_incomes": {
+        "task": "accounting.tasks.calculate_weekly_incomes",
+        "schedule": crontab(**WEEKLY_SATURDAY_AT_OO_15_GENERATE_REPORT),
+    },
+    "check_daily_balance": {
+        "task": "accounting.tasks.check_daily_balance",
+        "schedule": crontab(**EACH_DAY_AT_ONE_CLOCK_CHECK_YESTERDAY_DAILY_BALANCE),
+    },
+    "process_failed_income_update": {
+        "task": "accounting.tasks.process_failed_income_update",
+        "schedule": 10 * 60,  # every 10 minutes
+    },
+}
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-send-task-events
 CELERY_WORKER_SEND_TASK_EVENTS = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-task_send_sent_event
@@ -324,6 +365,11 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Documentation of API endpoints of miare",
     "VERSION": "1.0.0",
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAdminUser"],
+}
+SPECTACULAR_DEFAULTS = {
+    # Determines whether operation parameters should be sorted alphanumerically or just in
+    # the order they arrived. Accepts either True, False, or a callable for sort's key arg.
+    "SORT_OPERATION_PARAMETERS": False,
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
