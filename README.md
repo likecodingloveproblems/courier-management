@@ -1,6 +1,12 @@
 # miare
 
-Miare test project
+`Miare test project`
+
+Daily income events of couriers are stored in database, and daily income of each courier is updated in real-time, but this is only for couriers them selves to see their income.
+
+Operation team calculate couriers income weekly, so every saturday midnight, all couriers income in that week are calculated and stored base on their daily income.
+
+Every midnight at one morning clock, balance of previous day base on the courier income events and calculated daily income is checked and if there is any imbalance an email is sent to the admins.
 
 [![Built with Cookiecutter Django](https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter)](https://github.com/cookiecutter/cookiecutter-django/)
 [![Black code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
@@ -57,6 +63,15 @@ celery -A config.celery_app worker -l info
 ```
 
 Please note: For Celery's import magic to work, it is important *where* the celery commands are run. If you are in the same folder with *manage.py*, you should be right.
+
+### Celery beat
+To run a celery beat:
+
+``` bash
+cd miare
+celery -A config.celery_app beat -l info
+```
+
 
 ### Sentry
 
