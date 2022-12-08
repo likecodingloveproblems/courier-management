@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.db.models.signals import post_save
 
 
 class AccountingConfig(AppConfig):
@@ -6,6 +7,6 @@ class AccountingConfig(AppConfig):
     name = "accounting"
 
     def ready(self) -> None:
-        from accounting import signals
+        from accounting import receivers
 
-        signals.connecting()
+        post_save.connect(receivers.update_daily_income, "accounting.Income")
