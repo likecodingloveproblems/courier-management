@@ -1,7 +1,9 @@
 from django.db import models
+from django.db.models.constraints import UniqueConstraint
 from django.utils.translation import gettext as _
 
-from accounting.mixins import Processable, Timestampable
+from accounting.managers import DailyIncomeManager, IncomeManager, WeeklyIncomeManager
+from accounting.mixins import Processable, TimeStampable
 
 
 class Courier(models.Model):
@@ -16,7 +18,7 @@ class Courier(models.Model):
         return self.name
 
 
-class Income(Timestampable, Processable, models.Model):
+class Income(TimeStampable, Processable, models.Model):
     """Income store every courier income events, include:
     - trip income
     - reward income
@@ -30,6 +32,7 @@ class Income(Timestampable, Processable, models.Model):
         REWARD = 1
         PUNISHMENT = 2
 
+    objects = IncomeManager()
     courier = models.ForeignKey(
         "accounting.Courier", verbose_name=_("courier"), on_delete=models.PROTECT
     )
@@ -41,24 +44,31 @@ class Income(Timestampable, Processable, models.Model):
         verbose_name_plural = _("Trips")
 
     def __str__(self):
-        return self.name
+        return f"{self.courier}: {self.amount}"
 
     def get_signed_amount(self):
         if self.type == self.Type.PUNISHMENT:
             return self.amount * -1
         return self.amount
 
-    def processed(self):
+    def update_income_status(self):
         self.status = self.Status.PROCESSED
-        self.save()
+        self.save(update_fields=["status"])
+
+    def is_processed(self):
+        return self.status == self.Status.PROCESSED
 
 
 class CumulativeIncome(models.Model):
+    """Cumulative of income models
+
+    This is an abstract model to be used as superclass of daily and weekly incomes
+    """
 
     courier = models.ForeignKey(
         "accounting.Courier", verbose_name=_("courier"), on_delete=models.PROTECT
     )
-    date = models.DateField(_("date"), auto_now=False, auto_now_add=False)
+    date = models.DateField(_("date"), auto_now=False, auto_now_add=True)
     amount = models.IntegerField(_("amount"))
 
     class Meta:
@@ -68,30 +78,34 @@ class CumulativeIncome(models.Model):
         return f"{self.courier}: {self.amount}-{self.date}"
 
 
-class DailyIncome(CumulativeIncome):
+class DailyIncome(Processable, CumulativeIncome):
 
-    courier = models.ForeignKey(
-        "accounting.Courier", verbose_name=_("courier"), on_delete=models.PROTECT
-    )
-    date = models.DateField(_("date"), auto_now=False, auto_now_add=True)
-    amount = models.IntegerField(_("amount"))
+    objects = DailyIncomeManager()
 
     class Meta:
         verbose_name = _("DailyIncome")
         verbose_name_plural = _("DailyIncomes")
+        constraints = [
+            UniqueConstraint(
+                fields=["date", "courier"],
+                name="courier_date_unique_together_daily_income",
+            )
+        ]
+
+    def _update_daily_amount(self, income: Income):
+        self.amount += income.get_signed_amount()
 
 
 class WeeklyIncome(CumulativeIncome):
 
-    courier = models.ForeignKey(
-        "accounting.Courier", verbose_name=_("courier"), on_delete=models.PROTECT
-    )
-    date = models.DateField(_("date"), auto_now=False, auto_now_add=False)
-    amount = models.IntegerField(_("amount"))
+    objects = WeeklyIncomeManager()
 
     class Meta:
         verbose_name = _("weeklyincome")
         verbose_name_plural = _("weeklyincomes")
-
-    def __str__(self):
-        return self.name
+        constraints = [
+            UniqueConstraint(
+                fields=["date", "courier"],
+                name="courier_date_unique_together_weekly_income",
+            )
+        ]
