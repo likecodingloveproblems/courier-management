@@ -15,7 +15,21 @@ License: MIT
 
 ## Settings
 
-Moved to [settings](http://cookiecutter-django.readthedocs.io/en/latest/settings.html).
+Setting are configure based on the environment variables.
+for database setup, `DATABASE_URL` variable is set, default is `sqlite` database.
+
+### Authentication
+Authentication is done by session and token. token authentication hit database on every request to validate token.
+Another option is JSON Web Token (jwt), as it use a server side token to validate signature, it does not use database.
+For more secure authentication scenario, token can be split to an access token and a refresh token, [Simple JWT](https://django-rest-framework-simplejwt.readthedocs.io/en/latest/) is a popular option.
+for more comprehensive authentication scenario [djoser](https://djoser.readthedocs.io/) can be used.
+
+### Celery beat
+
+celery beat periodic tasks are set in `CELERY_BEAT_SCHEDULE` variable.
+
+For more detail look at [settings](http://cookiecutter-django.readthedocs.io/en/latest/settings.html).
+
 
 ## Basic Commands
 
