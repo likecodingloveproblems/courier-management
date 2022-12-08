@@ -43,21 +43,21 @@ class TestWeeklyIncomeViewSet:
     def test_get_weekly_incomes(self, admin_client, url, weekly_incomes):
         response = admin_client.get(url)
         expected_json = self.weekly_incomes_to_expected_results(weekly_incomes)
-        assert response.json() == expected_json
+        assert response.json()["results"] == expected_json
 
     def test_date_ascending_ordering(self, admin_client, url, weekly_incomes):
         ascending_ordering = "?ordering=date"
         response = admin_client.get(url + ascending_ordering)
         weekly_incomes.sort(key=lambda income: income.date)
         expected_json = self.weekly_incomes_to_expected_results(weekly_incomes)
-        assert response.json() == expected_json
+        assert response.json()["results"] == expected_json
 
     def test_date_descending_ordering(self, admin_client, url, weekly_incomes):
         descending_ordering = "?ordering=-date"
         response = admin_client.get(url + descending_ordering)
         weekly_incomes.sort(key=lambda income: (income.date, income.id), reverse=True)
         expected_json = self.weekly_incomes_to_expected_results(weekly_incomes)
-        assert response.json() == expected_json
+        assert response.json()["results"] == expected_json
 
     def test_filter_datetime(self, admin_client, url):
         dates = [
